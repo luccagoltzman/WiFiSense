@@ -1,32 +1,97 @@
-# React + TypeScript + Vite
+# WiFiSense
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Radar de presença com Wi-Fi CSI.
 
-Currently, two official plugins are available:
+## Pergunta do MVP
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+> Consigo detectar e visualizar pessoas utilizando sinais Wi-Fi?
 
-## React Compiler
+Enquanto a resposta estiver em validação: **sem login, sem banco, sem Supabase**. Tudo em memória.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Arquitetura
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```
+ESP32 (CSI)
+   → Servidor Python (filtragem + modelo → posição)
+   → API REST + WebSocket
+   → React (mapa / dashboard / console)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+O React **não** recebe CSI bruto — apenas:
+
+- posição (x, y)
+- movimento (direção, velocidade)
+- qualidade (confiança)
+- timestamp
+
+## Por que camadas?
+
+```
+Services
+├── ApiService      → HTTP
+├── RealtimeService → WebSocket (ou mock)
+└── StorageService  → memória hoje / Supabase amanhã
+```
+
+A UI conversa só com interfaces. Trocar persistência não exige reestruturar o frontend.
+
+## Estrutura
+
+```
+src/
+  components/   # UI reutilizável
+  pages/        # Dashboard, Planta, Console
+  layouts/      # MainLayout
+  hooks/        # realtime, floor plan, services
+  services/     # api / websocket / storage
+  models/       # planta demo
+  types/        # contratos do domínio
+  utils/
+  constants/
+  styles/
+server/         # FastAPI + WebSocket (processamento)
+```
+
+## Como rodar
+
+### Frontend (simulador embutido)
+
+```bash
+npm install
+npm run dev
+```
+
+Por padrão `VITE_USE_MOCK=true`: o browser simula detecções sem precisar do Python.
+
+### Backend (opcional nesta fase)
+
+```bash
+cd server
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+Depois, no `.env`:
+
+```
+VITE_USE_MOCK=false
+```
+
+O Vite faz proxy de `/api` e `/ws` para `localhost:8000`.
+
+## Telas
+
+| Rota | Função |
+|------|--------|
+| `/` | Dashboard — status, FPS, latência, sensores, preview |
+| `/planta` | Mapa Konva — paredes, sensores, pessoa, direção |
+| `/console` | Logs e métricas de processamento |
+
+## Evolução
+
+1. **Fase 1 (agora)** — MVP em memória, WebSocket, uma residência  
+2. **Fase 2** — histórico, replay, heatmap persistente  
+3. **Fase 3** — Supabase (auth, multiuser, casas)  
+4. **Fase 4** — múltiplas pessoas, respiração, quedas, mobile  

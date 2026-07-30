@@ -12,12 +12,14 @@ export function formatConfidence(value: number): string {
 }
 
 export function formatTimestamp(ts: number): string {
-  return new Date(ts).toLocaleTimeString('pt-BR', {
+  const date = new Date(ts)
+  const base = date.toLocaleTimeString('pt-BR', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    fractionalSecondDigits: 3,
   })
+  const ms = String(date.getMilliseconds()).padStart(3, '0')
+  return `${base}.${ms}`
 }
 
 export function metersToPixels(meters: number, scale: number): number {
